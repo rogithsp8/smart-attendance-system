@@ -14,26 +14,26 @@ const Sidebar = ({ user, onLogout, isDarkMode, toggleDarkMode }) => {
   const filteredMenuItems = menuItems.filter(item => item.role === user?.role);
 
   return (
-    <div className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
-      <div className="sidebar-content">
+    <div className={`fixed left-0 top-0 h-full bg-white shadow-lg transition-all duration-300 z-20 ${isCollapsed ? 'w-16' : 'w-64'} border-r border-gray-200`}>
+      <div className="flex flex-col h-full">
         {/* Header */}
-        <div className="sidebar-header">
+        <div className="flex items-center justify-between p-4 border-b border-gray-200">
           {!isCollapsed && (
-            <div className="sidebar-brand">
-              <div className="brand-icon">🎓</div>
-              <span className="brand-text">SCAAS</span>
+            <div className="flex items-center space-x-3">
+              <div className="text-2xl">🎓</div>
+              <span className="text-xl font-bold text-indigo-600">SCAAS</span>
             </div>
           )}
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className="sidebar-toggle"
+            className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
           >
             {isCollapsed ? '☰' : '✕'}
           </button>
         </div>
 
         {/* Navigation */}
-        <nav className="sidebar-nav">
+        <nav className="flex-1 p-4">
           {filteredMenuItems.map((item) => {
             const isActive = location.pathname === item.path;
             
@@ -41,31 +41,38 @@ const Sidebar = ({ user, onLogout, isDarkMode, toggleDarkMode }) => {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`nav-item ${isActive ? 'active' : ''}`}
+                className={`flex items-center space-x-3 p-3 rounded-lg transition-colors mb-2 ${
+                  isActive 
+                    ? 'bg-indigo-100 text-indigo-600' 
+                    : 'hover:bg-gray-100 text-gray-700'
+                }`}
               >
-                <span className="nav-icon">{item.icon}</span>
-                {!isCollapsed && <span className="nav-label">{item.label}</span>}
+                <span className="text-xl">{item.icon}</span>
+                {!isCollapsed && <span className="font-medium">{item.label}</span>}
               </Link>
             );
           })}
         </nav>
 
         {/* Footer */}
-        <div className="sidebar-footer">
+        <div className="p-4 border-t border-gray-200">
           {typeof toggleDarkMode === 'function' && (
-            <button onClick={toggleDarkMode} className="footer-item">
-              <span className="nav-icon">{isDarkMode ? '🌙' : '☀️'}</span>
-              {!isCollapsed && <span className="nav-label">Dark Mode</span>}
+            <button 
+              onClick={toggleDarkMode} 
+              className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 transition-colors w-full mb-2 text-gray-700"
+            >
+              <span className="text-xl">{isDarkMode ? '🌙' : '☀️'}</span>
+              {!isCollapsed && <span className="font-medium">Dark Mode</span>}
             </button>
           )}
 
           {/* Logout */}
           <button
             onClick={onLogout}
-            className="footer-item logout"
+            className="flex items-center space-x-3 p-3 rounded-lg hover:bg-red-50 transition-colors w-full text-red-600"
           >
-            <span className="nav-icon">🚪</span>
-            {!isCollapsed && <span className="nav-label">Logout</span>}
+            <span className="text-xl">🚪</span>
+            {!isCollapsed && <span className="font-medium">Logout</span>}
           </button>
         </div>
       </div>
