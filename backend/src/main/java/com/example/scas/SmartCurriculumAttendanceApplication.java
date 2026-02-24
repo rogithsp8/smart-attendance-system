@@ -1,0 +1,13 @@
+package com.example.scas;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class SmartCurriculumAttendanceApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(SmartCurriculumAttendanceApplication.class, args);
+    }
+}
+
