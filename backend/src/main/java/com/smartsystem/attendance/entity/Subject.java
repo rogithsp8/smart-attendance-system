@@ -19,6 +19,9 @@ public class Subject {
     @Column(nullable = false)
     private String name;
     
+    @Column(unique = true, nullable = false)
+    private String code;
+    
     @Column(nullable = false)
     private Long facultyId;
 }

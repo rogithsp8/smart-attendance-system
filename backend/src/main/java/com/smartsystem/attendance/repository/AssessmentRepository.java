@@ -10,4 +10,6 @@ import java.util.List;
 public interface AssessmentRepository extends JpaRepository<Assessment, Long> {
     
     List<Assessment> findBySubjectId(Long subjectId);
+    
+    List<Assessment> findBySubjectIdIn(List<Long> subjectIds);
 }

@@ -39,7 +39,7 @@ function StudentDashboardContent() {
       try {
         const [attendanceRes, assessmentsRes] = await Promise.all([
           attendanceAPI.getStudentAttendance(user.id),
-          assessmentAPI.getAssessments(),
+          assessmentAPI.getStudentAssessments(user.id),
         ]);
         setAttendance(attendanceRes.data);
         setAssessments(assessmentsRes.data);

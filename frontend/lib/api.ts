@@ -1,11 +1,49 @@
-import axios from 'axios';
+import axios, { AxiosResponse, AxiosError } from 'axios';
 
-const API_BASE_URL = 'http://localhost:8080/api';
+const API_BASE_URL = 'http://localhost:8084/api';
 
+// Create axios instance with default config
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
 });
+
+// Add request interceptor to include JWT token
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Add response interceptor for error handling
+api.interceptors.response.use(
+  (response: AxiosResponse) => {
+    console.log('API Response:', response.data);
+    return response;
+  },
+  (error: AxiosError) => {
+    console.error('API Error:', error);
+    
+    if (error.response?.status === 401) {
+      // Token expired or invalid
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('isLoggedIn');
+      window.location.href = '/login';
+    }
+    
+    return Promise.reject(error);
+  }
+);
 
 export interface User {
   id: number;
@@ -17,6 +55,7 @@ export interface User {
 export interface Subject {
   id: number;
   name: string;
+  code: string;
   facultyId: number;
 }
 
@@ -33,6 +72,39 @@ export interface Assessment {
   subjectId: number;
   title: string;
   totalMarks: number;
+}
+
+export interface Topic {
+  id: number;
+  title: string;
+  description: string;
+  subject: {
+    id: number;
+    name: string;
+    code: string;
+    facultyId: number;
+  };
+}
+
+export interface Question {
+  id: number;
+  questionText: string;
+  options: string; // JSON string from backend
+  correctAnswer: string;
+  assessment: {
+    id: number;
+    subjectId: number;
+    title: string;
+    totalMarks: number;
+  };
+}
+
+export interface Attempt {
+  id: number;
+  userId: number;
+  assessmentId: number;
+  score: number;
+  status: 'PENDING' | 'COMPLETED';
 }
 
 export interface RegisterRequest {
@@ -77,15 +149,49 @@ export const attendanceAPI = {
 };
 
 export const subjectAPI = {
-  getSubjects: () => api.get<Subject[]>('/subjects'),
-  createSubject: (subject: Omit<Subject, 'id'>) => 
-    api.post<Subject>('/subjects', subject),
+  getSubjects: () => {
+    console.log('Fetching subjects...');
+    return api.get<Subject[]>('/subjects');
+  },
+  createSubject: (subject: Omit<Subject, 'id'>) => {
+    console.log('Creating subject:', subject);
+    return api.post<Subject>('/subjects', subject);
+  },
 };
 
 export const assessmentAPI = {
   getAssessments: () => api.get<Assessment[]>('/assessments'),
+  getStudentAssessments: (userId: number) => api.get<Assessment[]>(`/assessments/student/${userId}`),
   createAssessment: (assessment: Omit<Assessment, 'id'>) => 
     api.post<Assessment>('/assessments', assessment),
+};
+
+export const topicAPI = {
+  getTopicsBySubject: (subjectId: number) => {
+    console.log('Fetching topics for subject ID:', subjectId);
+    return api.get<Topic[]>(`/topics/subject/${subjectId}`);
+  },
+  createTopic: (topic: Omit<Topic, 'id'>) => {
+    console.log('Creating topic:', topic);
+    return api.post<Topic>('/topics', topic);
+  },
+};
+
+export const questionAPI = {
+  getQuestionsByAssessment: (assessmentId: number) => {
+    console.log('Fetching questions for assessment ID:', assessmentId);
+    return api.get<Question[]>(`/questions/${assessmentId}`);
+  },
+  createQuestion: (assessmentId: number, question: Omit<Question, 'id'>) => {
+    console.log('Creating question for assessment ID:', assessmentId, question);
+    return api.post<Question>(`/questions/${assessmentId}`, question);
+  },
+};
+
+export const attemptAPI = {
+  submitAttempt: (userId: number, assessmentId: number, answers: Record<number, string>) => 
+    api.post<Attempt>('/attempts/submit', { userId, assessmentId, answers }),
+  getAttemptsByUser: (userId: number) => api.get<Attempt[]>(`/attempts/user/${userId}`),
 };
 
 export default api;

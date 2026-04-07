@@ -1,73 +1,66 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/layout/app-layout';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/dashboard/status-badge';
 import { Clock, CheckCircle, AlertCircle } from 'lucide-react';
-
-const upcomingAssessments = [
-  {
-    id: 1,
-    name: 'Midterm Exam',
-    subject: 'Data Structures',
-    dueDate: '2024-03-25',
-    type: 'exam',
-    totalMarks: 100,
-  },
-  {
-    id: 2,
-    name: 'Assignment 2',
-    subject: 'Algorithms',
-    dueDate: '2024-03-22',
-    type: 'assignment',
-    totalMarks: 50,
-  },
-  {
-    id: 3,
-    name: 'Quiz 4',
-    subject: 'Database Systems',
-    dueDate: '2024-03-23',
-    type: 'quiz',
-    totalMarks: 25,
-  },
-];
-
-const pastResults = [
-  {
-    id: 1,
-    name: 'Quiz 1',
-    subject: 'Data Structures',
-    date: '2024-03-10',
-    obtainedMarks: 22,
-    totalMarks: 25,
-    percentage: 88,
-    status: 'completed',
-  },
-  {
-    id: 2,
-    name: 'Assignment 1',
-    subject: 'Algorithms',
-    date: '2024-03-12',
-    obtainedMarks: 42,
-    totalMarks: 50,
-    percentage: 84,
-    status: 'completed',
-  },
-  {
-    id: 3,
-    name: 'Quiz 2',
-    subject: 'Database Systems',
-    date: '2024-03-15',
-    obtainedMarks: 18,
-    totalMarks: 25,
-    percentage: 72,
-    status: 'completed',
-  },
-];
+import { useAuth } from '@/contexts/AuthContext';
+import { assessmentAPI, Assessment } from '@/lib/api';
+import { useRouter } from 'next/navigation';
 
 export default function StudentAssessmentsPage() {
+  const { user } = useAuth();
+  const router = useRouter();
+  const [assessments, setAssessments] = useState<Assessment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'upcoming' | 'results'>('upcoming');
+
+  const handleStartAssessment = (assessmentId: number) => {
+    router.push(`/student/take-assessment/${assessmentId}`);
+  };
+
+  useEffect(() => {
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
+
+    const loadAssessments = async () => {
+      try {
+        const response = await assessmentAPI.getStudentAssessments(user.id);
+        setAssessments(response.data);
+      } catch (err) {
+        setError('Failed to load assessments');
+        console.error('Error loading assessments:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadAssessments();
+  }, [user?.id]);
+
+  if (loading) {
+    return (
+      <AppLayout userRole="student" pageTitle="Assessments">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-lg">Loading...</div>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <AppLayout userRole="student" pageTitle="Assessments">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-lg text-red-500">Error: {error}</div>
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout userRole="student" pageTitle="Assessments">
@@ -105,57 +98,41 @@ export default function StudentAssessmentsPage() {
         {/* Content */}
         {activeTab === 'upcoming' && (
           <div className="space-y-4">
-            <div className="text-sm text-muted-foreground">You have {upcomingAssessments.length} upcoming assessments</div>
-            {upcomingAssessments.map((assessment) => (
-              <div key={assessment.id} className="rounded-lg border border-border bg-card p-6">
-                <div className="mb-4 flex items-start justify-between">
-                  <div>
-                    <h3 className="text-lg font-semibold text-foreground">{assessment.name}</h3>
-                    <p className="text-sm text-muted-foreground">{assessment.subject}</p>
+            <div className="text-sm text-muted-foreground">You have {assessments.length} assessments</div>
+            {assessments.length > 0 ? (
+              assessments.map((assessment) => (
+                <div key={assessment.id} className="rounded-lg border border-border bg-card p-6">
+                  <div className="mb-4 flex items-start justify-between">
+                    <div>
+                      <h3 className="text-lg font-semibold text-foreground">{assessment.title}</h3>
+                      <p className="text-sm text-muted-foreground">Subject ID: {assessment.subjectId}</p>
+                    </div>
+                    <span className="inline-block rounded-full bg-warning-light px-3 py-1 text-xs font-medium text-warning">
+                      Assessment
+                    </span>
                   </div>
-                  <span className="inline-block rounded-full bg-warning-light px-3 py-1 text-xs font-medium text-warning">
-                    {assessment.type.charAt(0).toUpperCase() + assessment.type.slice(1)}
-                  </span>
-                </div>
-                <div className="mb-4 flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-5 w-5 text-muted-foreground" />
-                    <span className="text-sm">Due: {assessment.dueDate}</span>
+                  <div className="mb-4 flex items-center gap-4">
+                    <div className="text-sm text-muted-foreground">Total: {assessment.totalMarks} marks</div>
                   </div>
-                  <div className="text-sm text-muted-foreground">Total: {assessment.totalMarks} marks</div>
+                  <Button onClick={() => handleStartAssessment(assessment.id)} className="w-full">
+                    Start Assessment
+                  </Button>
                 </div>
-                <Button className="w-full">Start Assessment</Button>
+              ))
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                No upcoming assessments found
               </div>
-            ))}
+            )}
           </div>
         )}
 
         {activeTab === 'results' && (
           <div className="space-y-4">
-            <div className="text-sm text-muted-foreground">You have completed {pastResults.length} assessments</div>
-            {pastResults.map((result) => (
-              <div key={result.id} className="rounded-lg border border-border bg-card p-6">
-                <div className="mb-4 flex items-start justify-between">
-                  <div>
-                    <h3 className="text-lg font-semibold text-foreground">{result.name}</h3>
-                    <p className="text-sm text-muted-foreground">{result.subject}</p>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-2xl font-bold text-success">{result.percentage}%</div>
-                    <p className="text-sm text-muted-foreground">
-                      {result.obtainedMarks}/{result.totalMarks} marks
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Completed on {result.date}</span>
-                  <div className="flex items-center gap-1 text-success">
-                    <CheckCircle className="h-4 w-4" />
-                    <span className="text-sm font-medium">Completed</span>
-                  </div>
-                </div>
-              </div>
-            ))}
+            <div className="text-sm text-muted-foreground">Your completed assessments will appear here</div>
+            <div className="text-center py-8 text-muted-foreground">
+              No completed assessments found
+            </div>
           </div>
         )}
       </div>

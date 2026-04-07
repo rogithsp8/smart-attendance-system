@@ -7,7 +7,7 @@ import { StatCard } from '@/components/dashboard/stat-card';
 import { ChartCard } from '@/components/dashboard/chart-card';
 import { DataTable } from '@/components/dashboard/data-table';
 import { StatusBadge } from '@/components/dashboard/status-badge';
-import { userAPI, attendanceAPI, User } from '@/lib/api';
+import { userAPI, attendanceAPI, assessmentAPI, attemptAPI, User, Assessment, Attempt } from '@/lib/api';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ScatterChart, Scatter } from 'recharts';
 
 export default function AdminDashboard() {
@@ -18,6 +18,8 @@ function AdminDashboardContent() {
   const [users, setUsers] = useState<User[]>([]);
   const [students, setStudents] = useState<User[]>([]);
   const [faculty, setFaculty] = useState<User[]>([]);
+  const [assessments, setAssessments] = useState<Assessment[]>([]);
+  const [attempts, setAttempts] = useState<Attempt[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,14 +29,18 @@ function AdminDashboardContent() {
 
   const loadData = async () => {
     try {
-      const [usersRes, studentsRes, facultyRes] = await Promise.all([
+      const [usersRes, studentsRes, facultyRes, assessmentsRes, attemptsRes] = await Promise.all([
         userAPI.getAllUsers(),
         userAPI.getStudents(),
-        userAPI.getFaculty()
+        userAPI.getFaculty(),
+        assessmentAPI.getAssessments(),
+        attemptAPI.getAttemptsByUser(1) // Get attempts for admin user (ID 1)
       ]);
       setUsers(usersRes.data);
       setStudents(studentsRes.data);
       setFaculty(facultyRes.data);
+      setAssessments(assessmentsRes.data);
+      setAttempts(attemptsRes.data);
     } catch (err) {
       setError('Failed to load data');
       console.error('Error loading admin data:', err);
@@ -42,6 +48,12 @@ function AdminDashboardContent() {
       setLoading(false);
     }
   };
+
+  const totalAssessments = assessments.length;
+  const totalAttempts = attempts.length;
+  const averageScore = totalAttempts > 0 
+    ? Math.round(attempts.reduce((sum, attempt) => sum + attempt.score, 0) / totalAttempts)
+    : 0;
 
   if (loading) {
     return (
@@ -105,6 +117,27 @@ function AdminDashboardContent() {
             trend={{ value: 0, isPositive: true }}
             description="All systems operational"
             variant="success"
+          />
+          <StatCard
+            title="Total Assessments"
+            value={totalAssessments.toString()}
+            icon={BarChart3}
+            trend={{ value: 5, isPositive: true }}
+            description="Assessments created"
+          />
+          <StatCard
+            title="Total Attempts"
+            value={totalAttempts.toString()}
+            icon={BookOpen}
+            trend={{ value: 12, isPositive: true }}
+            description="Assessment submissions"
+          />
+          <StatCard
+            title="Average Score"
+            value={`${averageScore}%`}
+            icon={TrendingUp}
+            trend={{ value: 3, isPositive: true }}
+            description="Student performance"
           />
         </div>
 

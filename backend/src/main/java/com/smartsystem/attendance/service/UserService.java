@@ -30,6 +30,10 @@ public class UserService {
         return userRepository.findById(id);
     }
 
+    public User getUserByIdOrThrow(Long id) {
+        return userRepository.findById(id).orElse(null);
+    }
+
     public Optional<User> getUserByEmail(String email) {
         return userRepository.findByEmail(email);
     }
