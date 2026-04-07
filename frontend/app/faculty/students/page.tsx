@@ -3,22 +3,55 @@
 import React, { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/layout/app-layout';
 import { ProgressBar } from '@/components/dashboard/progress-bar';
-import { userAPI, User } from '@/lib/api';
+import { userAPI, attendanceAPI, attemptAPI, User, Attendance, Attempt } from '@/lib/api';
 
 export default function FacultyStudentsPage() {
   const [students, setStudents] = useState<User[]>([]);
+  const [allAttendance, setAllAttendance] = useState<Attendance[]>([]);
+  const [allAttempts, setAllAttempts] = useState<Attempt[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    userAPI.getStudents()
-      .then((res) => {
-        console.log('Students:', res.data);
-        setStudents(res.data);
+    Promise.all([
+      userAPI.getStudents(),
+      attendanceAPI.getAttendance(),
+    ])
+      .then(([studentsRes, attendanceRes]) => {
+        const studentList = studentsRes.data;
+        setStudents(studentList);
+        setAllAttendance(attendanceRes.data);
+
+        // Fetch attempts for every student in parallel
+        Promise.allSettled(
+          studentList.map((s) => attemptAPI.getAttemptsByUser(s.id))
+        ).then((results) => {
+          const merged: Attempt[] = [];
+          results.forEach((r) => {
+            if (r.status === 'fulfilled') merged.push(...r.value.data);
+          });
+          setAllAttempts(merged);
+        });
       })
-      .catch(() => setError('Failed to load students'))
+      .catch(() => setError('Failed to load student data'))
       .finally(() => setLoading(false));
   }, []);
+
+  // Compute attendance % for a student from the bulk attendance list
+  const getAttendance = (studentId: number): number => {
+    const records = allAttendance.filter((a) => a.studentId === studentId);
+    if (records.length === 0) return 0;
+    const present = records.filter((a) => a.status === 'PRESENT').length;
+    return Math.round((present / records.length) * 100);
+  };
+
+  // Compute avg score from attempts collected per student
+  const getAvgScore = (studentId: number): number => {
+    const attempts = allAttempts.filter((a) => a.userId === studentId);
+    if (attempts.length === 0) return 0;
+    const total = attempts.reduce((sum, a) => sum + (a.score ?? 0), 0);
+    return Math.round(total / attempts.length);
+  };
 
   if (loading) {
     return (
@@ -61,46 +94,76 @@ export default function FacultyStudentsPage() {
                   <th className="px-4 py-3 text-left font-medium text-muted-foreground">ID</th>
                   <th className="px-4 py-3 text-left font-medium text-muted-foreground">Name</th>
                   <th className="px-4 py-3 text-left font-medium text-muted-foreground">Email</th>
-                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">Attendance</th>
-                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">Avg Score</th>
+                  <th className="px-4 py-3 text-left font-medium text-muted-foreground w-48">Attendance</th>
+                  <th className="px-4 py-3 text-left font-medium text-muted-foreground w-48">Avg Score</th>
                   <th className="px-4 py-3 text-left font-medium text-muted-foreground">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {students.map((student) => {
-                  // Attendance and score not available from /api/students — default to 0
-                  const attendance = 0;
-                  const avgScore = 0;
-                  const isAtRisk = attendance > 0 && attendance < 75;
+                  const attendance = getAttendance(student.id);
+                  const avgScore = getAvgScore(student.id);
+                  const isAtRisk = attendance < 75;
+                  const hasAttendanceData = allAttendance.some((a) => a.studentId === student.id);
 
                   return (
                     <tr key={student.id} className="border-b border-border last:border-0 hover:bg-muted/20">
                       <td className="px-4 py-3 text-muted-foreground">{student.id}</td>
                       <td className="px-4 py-3 font-medium text-foreground">{student.name}</td>
                       <td className="px-4 py-3 text-muted-foreground">{student.email}</td>
-                      <td className="px-4 py-3 w-40">
-                        <ProgressBar
-                          label=""
-                          value={attendance}
-                          max={100}
-                          showPercentage={false}
-                        />
+
+                      {/* Attendance */}
+                      <td className="px-4 py-3">
+                        {hasAttendanceData ? (
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1">
+                              <ProgressBar
+                                label=""
+                                value={attendance}
+                                max={100}
+                                showPercentage={false}
+                                variant={attendance >= 75 ? 'success' : 'warning'}
+                              />
+                            </div>
+                            <span className="text-xs font-semibold w-9 text-right">
+                              {attendance}%
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">No data</span>
+                        )}
                       </td>
-                      <td className="px-4 py-3 w-40">
-                        <ProgressBar
-                          label=""
-                          value={avgScore}
-                          max={100}
-                          showPercentage={false}
-                        />
+
+                      {/* Avg Score */}
+                      <td className="px-4 py-3">
+                        {allAttempts.some((a) => a.userId === student.id) ? (
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1">
+                              <ProgressBar
+                                label=""
+                                value={avgScore}
+                                max={100}
+                                showPercentage={false}
+                                variant={avgScore >= 70 ? 'success' : 'warning'}
+                              />
+                            </div>
+                            <span className="text-xs font-semibold w-9 text-right">
+                              {avgScore}%
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">No attempts</span>
+                        )}
                       </td>
+
+                      {/* Status */}
                       <td className="px-4 py-3">
                         <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-                          isAtRisk
+                          hasAttendanceData && isAtRisk
                             ? 'bg-yellow-100 text-yellow-700'
                             : 'bg-green-100 text-green-700'
                         }`}>
-                          {isAtRisk ? 'At Risk' : 'Normal'}
+                          {hasAttendanceData && isAtRisk ? 'At Risk' : 'Normal'}
                         </span>
                       </td>
                     </tr>

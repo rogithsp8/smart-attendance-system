@@ -16,7 +16,6 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:3000")
 public class AttendanceController {
 
     private final AttendanceService attendanceService;
