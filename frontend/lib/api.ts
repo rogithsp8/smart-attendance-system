@@ -187,6 +187,8 @@ export const topicAPI = {
     console.log('Creating topic:', topic);
     return api.post<Topic>('/topics', topic);
   },
+  markComplete: (topicId: number) =>
+    api.patch<Topic>(`/topics/${topicId}/complete`),
 };
 
 export const questionAPI = {

@@ -1,108 +1,121 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/layout/app-layout';
-import { DataTable } from '@/components/dashboard/data-table';
-import { StatusBadge } from '@/components/dashboard/status-badge';
 import { ProgressBar } from '@/components/dashboard/progress-bar';
-
-const studentsData = [
-  {
-    id: 1,
-    name: 'Rajesh Kumar',
-    rollNumber: 'CS-001',
-    email: 'rajesh@university.edu',
-    attendance: 92,
-    averageScore: 85,
-    status: 'normal',
-  },
-  {
-    id: 2,
-    name: 'Priya Sharma',
-    rollNumber: 'CS-002',
-    email: 'priya@university.edu',
-    attendance: 88,
-    averageScore: 78,
-    status: 'normal',
-  },
-  {
-    id: 3,
-    name: 'Arjun Singh',
-    rollNumber: 'CS-003',
-    email: 'arjun@university.edu',
-    attendance: 65,
-    averageScore: 55,
-    status: 'at-risk',
-  },
-  {
-    id: 4,
-    name: 'Neha Patel',
-    rollNumber: 'CS-004',
-    email: 'neha@university.edu',
-    attendance: 95,
-    averageScore: 92,
-    status: 'normal',
-  },
-  {
-    id: 5,
-    name: 'Vikram Desai',
-    rollNumber: 'CS-005',
-    email: 'vikram@university.edu',
-    attendance: 72,
-    averageScore: 68,
-    status: 'at-risk',
-  },
-];
+import { userAPI, User } from '@/lib/api';
 
 export default function FacultyStudentsPage() {
-  const studentColumns = [
-    { key: 'name', label: 'Name', className: 'font-medium' },
-    { key: 'rollNumber', label: 'Roll Number' },
-    { key: 'email', label: 'Email' },
-    {
-      key: 'attendance',
-      label: 'Attendance',
-      render: (value: any) => (
-        <div className="flex items-center gap-2">
-          <div className="w-16">
-            <ProgressBar percentage={value} variant={value >= 75 ? 'default' : 'warning'} />
-          </div>
-          <span className="text-sm font-medium">{value}%</span>
+  const [students, setStudents] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    userAPI.getStudents()
+      .then((res) => {
+        console.log('Students:', res.data);
+        setStudents(res.data);
+      })
+      .catch(() => setError('Failed to load students'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <AppLayout userRole="faculty" pageTitle="Students">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-lg">Loading...</div>
         </div>
-      ),
-    },
-    {
-      key: 'averageScore',
-      label: 'Avg Score',
-      render: (value: any) => (
-        <div className="flex items-center gap-2">
-          <div className="w-16">
-            <ProgressBar percentage={value} variant={value >= 70 ? 'default' : 'warning'} />
-          </div>
-          <span className="text-sm font-medium">{value}%</span>
+      </AppLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <AppLayout userRole="faculty" pageTitle="Students">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-lg text-red-500">{error}</div>
         </div>
-      ),
-    },
-    {
-      key: 'status',
-      label: 'Status',
-      render: (value: any) => <StatusBadge status={value} />,
-    },
-  ];
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout userRole="faculty" pageTitle="Students">
       <div className="space-y-6">
-        {/* Header */}
         <div>
           <h1 className="text-3xl font-bold text-foreground">Students</h1>
-          <p className="mt-2 text-muted-foreground">View and manage student records, attendance, and performance</p>
+          <p className="mt-2 text-muted-foreground">
+            View and manage student records ({students.length} enrolled)
+          </p>
         </div>
 
-        {/* Students Table */}
-        <div className="rounded-lg border border-border bg-card p-6">
-          <h2 className="mb-4 text-lg font-semibold text-foreground">Enrolled Students</h2>
-          <DataTable columns={studentColumns} data={studentsData} />
+        <div className="rounded-lg border border-border bg-card">
+          <div className="p-6 border-b border-border">
+            <h2 className="text-lg font-semibold text-foreground">Enrolled Students</h2>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border bg-muted/40">
+                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">ID</th>
+                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">Name</th>
+                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">Email</th>
+                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">Attendance</th>
+                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">Avg Score</th>
+                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {students.map((student) => {
+                  // Attendance and score not available from /api/students — default to 0
+                  const attendance = 0;
+                  const avgScore = 0;
+                  const isAtRisk = attendance > 0 && attendance < 75;
+
+                  return (
+                    <tr key={student.id} className="border-b border-border last:border-0 hover:bg-muted/20">
+                      <td className="px-4 py-3 text-muted-foreground">{student.id}</td>
+                      <td className="px-4 py-3 font-medium text-foreground">{student.name}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{student.email}</td>
+                      <td className="px-4 py-3 w-40">
+                        <ProgressBar
+                          label=""
+                          value={attendance}
+                          max={100}
+                          showPercentage={false}
+                        />
+                      </td>
+                      <td className="px-4 py-3 w-40">
+                        <ProgressBar
+                          label=""
+                          value={avgScore}
+                          max={100}
+                          showPercentage={false}
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
+                          isAtRisk
+                            ? 'bg-yellow-100 text-yellow-700'
+                            : 'bg-green-100 text-green-700'
+                        }`}>
+                          {isAtRisk ? 'At Risk' : 'Normal'}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {students.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
+                      No students found
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </AppLayout>

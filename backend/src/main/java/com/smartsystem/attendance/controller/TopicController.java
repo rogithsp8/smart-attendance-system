@@ -13,7 +13,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:3003,http://localhost:3004")
 public class TopicController {
 
     private final TopicService topicService;
@@ -69,5 +68,15 @@ public class TopicController {
     public ResponseEntity<List<Topic>> getAllTopics() {
         List<Topic> topics = topicService.getAllTopics();
         return ResponseEntity.ok(topics);
+    }
+
+    @PatchMapping("/topics/{id}/complete")
+    public ResponseEntity<Topic> markComplete(@PathVariable Long id) {
+        try {
+            Topic topic = topicService.markComplete(id);
+            return ResponseEntity.ok(topic);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        }
     }
 }

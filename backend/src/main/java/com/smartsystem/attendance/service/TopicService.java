@@ -46,4 +46,11 @@ public class TopicService {
     public void deleteTopic(Long id) {
         topicRepository.deleteById(id);
     }
+
+    public Topic markComplete(Long id) {
+        Topic topic = topicRepository.findById(id)
+            .orElseThrow(() -> new IllegalArgumentException("Topic not found: " + id));
+        topic.setCompleted(true);
+        return topicRepository.save(topic);
+    }
 }
