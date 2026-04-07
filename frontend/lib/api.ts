@@ -10,18 +10,24 @@ const api = axios.create({
   },
 });
 
-// Add request interceptor to include JWT token
+// Add request interceptor to include user id header (backend uses session-based auth)
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    // Also attach stored user id for endpoints that need it
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      try {
+        const user = JSON.parse(storedUser);
+        if (user?.id) config.headers['X-User-Id'] = String(user.id);
+      } catch { /* ignore */ }
+    }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
 // Add response interceptor for error handling
@@ -78,6 +84,7 @@ export interface Topic {
   id: number;
   title: string;
   description: string;
+  completed: boolean;
   subject: {
     id: number;
     name: string;

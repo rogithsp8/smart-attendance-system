@@ -3,13 +3,16 @@
 import React, { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/layout/app-layout';
 import { ProgressBar } from '@/components/dashboard/progress-bar';
-import { CheckCircle, Clock } from 'lucide-react';
-import { subjectAPI, Subject } from '@/lib/api';
+import { CheckCircle, Clock, ChevronDown, ChevronUp } from 'lucide-react';
+import { subjectAPI, topicAPI, Subject, Topic } from '@/lib/api';
 
 export default function StudentCurriculumPage() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [expandedSubjectId, setExpandedSubjectId] = useState<number | null>(null);
+  const [topicsBySubject, setTopicsBySubject] = useState<Record<number, Topic[]>>({});
+  const [loadingTopics, setLoadingTopics] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
     loadSubjects();
@@ -24,6 +27,31 @@ export default function StudentCurriculumPage() {
       console.error('Error loading subjects:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSubjectClick = async (subjectId: number) => {
+    // Collapse if already expanded
+    if (expandedSubjectId === subjectId) {
+      setExpandedSubjectId(null);
+      return;
+    }
+
+    setExpandedSubjectId(subjectId);
+
+    // Don't re-fetch if already loaded
+    if (topicsBySubject[subjectId]) return;
+
+    setLoadingTopics((prev) => ({ ...prev, [subjectId]: true }));
+    try {
+      const response = await topicAPI.getTopicsBySubject(subjectId);
+      console.log('Topics:', response.data);
+      setTopicsBySubject((prev) => ({ ...prev, [subjectId]: response.data }));
+    } catch (err) {
+      console.error('Error loading topics for subject', subjectId, err);
+      setTopicsBySubject((prev) => ({ ...prev, [subjectId]: [] }));
+    } finally {
+      setLoadingTopics((prev) => ({ ...prev, [subjectId]: false }));
     }
   };
 
@@ -50,69 +78,86 @@ export default function StudentCurriculumPage() {
   return (
     <AppLayout userRole="student" pageTitle="Curriculum">
       <div className="space-y-6">
-        {/* Header */}
         <div>
           <h1 className="text-3xl font-bold text-foreground">Curriculum Progress</h1>
-          <p className="mt-2 text-muted-foreground">Track your progress across all subjects</p>
+          <p className="mt-2 text-muted-foreground">
+            Click a subject to view its topics
+          </p>
         </div>
 
-        {/* Subject Progress Cards */}
         <div className="space-y-4">
           {subjects.length > 0 ? (
-            subjects.map((subject) => (
-              <div key={subject.id} className="rounded-lg border border-border bg-card p-6">
-                <div className="mb-4 flex items-start justify-between">
-                  <div>
-                    <h3 className="text-lg font-semibold text-foreground">{subject.name}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Subject ID: {subject.id}
-                    </p>
-                  </div>
-                  <span className="inline-block rounded-full bg-primary-light px-3 py-1 text-xs font-medium text-primary">
-                    75% Complete
-                  </span>
-                </div>
+            subjects.map((subject) => {
+              const isExpanded = expandedSubjectId === subject.id;
+              const topics = topicsBySubject[subject.id] ?? [];
+              const isLoadingTopics = loadingTopics[subject.id] ?? false;
 
-                <div className="mb-4">
-                  <div className="mb-2 flex items-center justify-between">
-                    <span className="text-sm font-medium text-foreground">Progress</span>
-                    <span className="text-sm font-medium text-primary">75%</span>
-                  </div>
-                  <ProgressBar value={75} max={100} label="Progress" />
-                </div>
-
-                <div className="mb-4 grid gap-4 sm:grid-cols-2">
-                  <div className="flex items-center gap-3 rounded border border-border bg-muted/40 p-3">
-                    <CheckCircle className="h-5 w-5 text-success" />
+              return (
+                <div key={subject.id} className="rounded-lg border border-border bg-card">
+                  {/* Clickable subject header */}
+                  <button
+                    onClick={() => handleSubjectClick(subject.id)}
+                    className="w-full p-6 text-left flex items-start justify-between hover:bg-muted/30 transition-colors rounded-lg"
+                  >
                     <div>
-                      <p className="text-xs text-muted-foreground">Covered Topics</p>
-                      <p className="font-semibold text-foreground">7</p>
+                      <h3 className="text-lg font-semibold text-foreground">{subject.name}</h3>
+                      <p className="text-sm text-muted-foreground">Code: {subject.code}</p>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-3 rounded border border-border bg-muted/40 p-3">
-                    <Clock className="h-5 w-5 text-warning" />
-                    <div>
-                      <p className="text-xs text-muted-foreground">Pending Topics</p>
-                      <p className="font-semibold text-foreground">3</p>
+                    <div className="flex items-center gap-3">
+                      <span className="inline-block rounded-full bg-primary-light px-3 py-1 text-xs font-medium text-primary">
+                        Active
+                      </span>
+                      {isExpanded ? (
+                        <ChevronUp className="h-5 w-5 text-muted-foreground" />
+                      ) : (
+                        <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                      )}
                     </div>
-                  </div>
-                </div>
+                  </button>
 
-                <div>
-                  <p className="mb-2 text-sm font-medium text-foreground">Status</p>
-                  <div className="flex flex-wrap gap-2">
-                    <span className="inline-flex items-center gap-1 rounded-full bg-success-light px-3 py-1 text-xs font-medium text-success">
-                      <CheckCircle className="h-3 w-3" />
-                      Active
-                    </span>
-                  </div>
+                  {/* Expanded topics section */}
+                  {isExpanded && (
+                    <div className="px-6 pb-6 border-t border-border">
+                      {isLoadingTopics ? (
+                        <div className="py-4 text-sm text-muted-foreground">Loading topics...</div>
+                      ) : topics.length > 0 ? (
+                        <div className="mt-4 space-y-3">
+                          <p className="text-sm font-medium text-foreground">
+                            {topics.length} topic{topics.length !== 1 ? 's' : ''}
+                          </p>
+                          {topics.map((topic) => (
+                            <div
+                              key={topic.id}
+                              className="flex items-start gap-3 rounded border border-border bg-muted/40 p-3"
+                            >
+                              {topic.completed ? (
+                                <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+                              ) : (
+                                <Clock className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+                              )}
+                              <div>
+                                <p className="text-sm font-medium text-foreground">{topic.title}</p>
+                                {topic.description && (
+                                  <p className="mt-0.5 text-xs text-muted-foreground">
+                                    {topic.description}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="py-4 text-sm text-muted-foreground">
+                          No topics found for this subject
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))
+              );
+            })
           ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              No subjects found
-            </div>
+            <div className="text-center py-8 text-muted-foreground">No subjects found</div>
           )}
         </div>
       </div>

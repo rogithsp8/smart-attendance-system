@@ -10,7 +10,7 @@ import { assessmentAPI, Assessment } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 
 export default function StudentAssessmentsPage() {
-  const { user } = useAuth();
+  const { user, isReady } = useAuth();
   const router = useRouter();
   const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -22,6 +22,7 @@ export default function StudentAssessmentsPage() {
   };
 
   useEffect(() => {
+    if (!isReady) return;
     if (!user?.id) {
       setLoading(false);
       return;
@@ -29,7 +30,9 @@ export default function StudentAssessmentsPage() {
 
     const loadAssessments = async () => {
       try {
+        console.log('Fetching assessments for user ID:', user.id);
         const response = await assessmentAPI.getStudentAssessments(user.id);
+        console.log('Assessments:', response.data);
         setAssessments(response.data);
       } catch (err) {
         setError('Failed to load assessments');
@@ -40,7 +43,7 @@ export default function StudentAssessmentsPage() {
     };
 
     loadAssessments();
-  }, [user?.id]);
+  }, [isReady, user?.id]);
 
   if (loading) {
     return (
