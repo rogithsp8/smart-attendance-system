@@ -24,23 +24,26 @@ export default function StudentDashboard() {
 }
 
 function StudentDashboardContent() {
-  const { user } = useAuth();
+  const { user, isReady } = useAuth();
   const [attendance, setAttendance] = useState<Attendance[]>([]);
   const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!isReady) return;
     if (!user?.id) {
       setLoading(false);
       return;
     }
+    console.log('User ID:', user.id);
     const loadData = async () => {
       try {
         const [attendanceRes, assessmentsRes] = await Promise.all([
           attendanceAPI.getStudentAttendance(user.id),
           assessmentAPI.getStudentAssessments(user.id),
         ]);
+        console.log('Assessments:', assessmentsRes.data);
         setAttendance(attendanceRes.data);
         setAssessments(assessmentsRes.data);
       } catch (err) {
@@ -51,7 +54,7 @@ function StudentDashboardContent() {
       }
     };
     loadData();
-  }, [user?.id]);
+  }, [isReady, user?.id]);
 
   // Calculate attendance percentage
   const attendancePercentage = attendance.length > 0 
@@ -97,7 +100,7 @@ function StudentDashboardContent() {
             My Learning Dashboard
           </h1>
           <p className="mt-1 text-muted-foreground">
-            Computer Science - Semester 3 | Enrollment: EN2024001
+            Welcome, {user?.name ?? 'Student'}
           </p>
         </div>
 
@@ -112,18 +115,17 @@ function StudentDashboardContent() {
           />
           <StatCard
             title="Engagement Score"
-            value="87"
+            value={assessments.length > 0 ? `${assessments.length} tests` : '—'}
             icon={Award}
-            trend={{ value: 5, isPositive: true }}
-            description="Based on participation metrics"
+            description="Assessments assigned to you"
             variant="success"
           />
           <StatCard
             title="Overall Performance"
-            value="88%"
+            value={attendancePercentage >= 75 ? 'On Track' : 'At Risk'}
             icon={BookOpen}
-            description="Cumulative GPA based score"
-            variant="success"
+            description={`Based on ${attendancePercentage}% attendance`}
+            variant={attendancePercentage >= 75 ? 'success' : 'warning'}
           />
           <StatCard
             title="Risk Status"

@@ -142,6 +142,11 @@ export const userAPI = {
   getAllUsers: () => api.get<User[]>('/users'),
   getStudents: () => api.get<User[]>('/students'),
   getFaculty: () => api.get<User[]>('/faculty'),
+  getUserSubjects: (userId: number) => api.get<Subject[]>(`/users/${userId}/subjects`),
+  assignSubject: (userId: number, subjectId: number) =>
+    api.post<Subject[]>(`/users/${userId}/subjects/${subjectId}`),
+  removeSubject: (userId: number, subjectId: number) =>
+    api.delete<Subject[]>(`/users/${userId}/subjects/${subjectId}`),
 };
 
 export const attendanceAPI = {

@@ -1,10 +1,14 @@
 package com.smartsystem.attendance.service;
 
+import com.smartsystem.attendance.entity.Subject;
 import com.smartsystem.attendance.entity.User;
+import com.smartsystem.attendance.repository.SubjectRepository;
 import com.smartsystem.attendance.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -13,6 +17,7 @@ import java.util.Optional;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final SubjectRepository subjectRepository;
 
     public List<User> getAllUsers() {
         return userRepository.findAll();
@@ -44,5 +49,40 @@ public class UserService {
 
     public void deleteUser(Long id) {
         userRepository.deleteById(id);
+    }
+
+    @Transactional
+    public User assignSubject(Long userId, Long subjectId) {
+        User user = userRepository.findByIdWithSubjects(userId)
+            .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
+        Subject subject = subjectRepository.findById(subjectId)
+            .orElseThrow(() -> new IllegalArgumentException("Subject not found: " + subjectId));
+        if (user.getSubjects() == null) {
+            user.setSubjects(new ArrayList<>());
+        }
+        boolean alreadyAssigned = user.getSubjects().stream()
+            .anyMatch(s -> s.getId().equals(subjectId));
+        if (!alreadyAssigned) {
+            user.getSubjects().add(subject);
+            userRepository.save(user);
+        }
+        return user;
+    }
+
+    @Transactional
+    public User removeSubject(Long userId, Long subjectId) {
+        User user = userRepository.findByIdWithSubjects(userId)
+            .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
+        if (user.getSubjects() != null) {
+            user.getSubjects().removeIf(s -> s.getId().equals(subjectId));
+            userRepository.save(user);
+        }
+        return user;
+    }
+
+    public List<Subject> getUserSubjects(Long userId) {
+        return userRepository.findByIdWithSubjects(userId)
+            .map(User::getSubjects)
+            .orElse(List.of());
     }
 }

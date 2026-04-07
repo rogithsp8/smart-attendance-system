@@ -91,6 +91,9 @@ export default function StudentCurriculumPage() {
               const isExpanded = expandedSubjectId === subject.id;
               const topics = topicsBySubject[subject.id] ?? [];
               const isLoadingTopics = loadingTopics[subject.id] ?? false;
+              const completed = topics.filter((t) => t.completed === true).length;
+              const total = topics.length;
+              const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
 
               return (
                 <div key={subject.id} className="rounded-lg border border-border bg-card">
@@ -105,7 +108,7 @@ export default function StudentCurriculumPage() {
                     </div>
                     <div className="flex items-center gap-3">
                       <span className="inline-block rounded-full bg-primary-light px-3 py-1 text-xs font-medium text-primary">
-                        Active
+                        {isExpanded && total > 0 ? `${progress}% complete` : 'Active'}
                       </span>
                       {isExpanded ? (
                         <ChevronUp className="h-5 w-5 text-muted-foreground" />
@@ -122,9 +125,23 @@ export default function StudentCurriculumPage() {
                         <div className="py-4 text-sm text-muted-foreground">Loading topics...</div>
                       ) : topics.length > 0 ? (
                         <div className="mt-4 space-y-3">
-                          <p className="text-sm font-medium text-foreground">
-                            {topics.length} topic{topics.length !== 1 ? 's' : ''}
-                          </p>
+                          <div className="mb-3">
+                            <div className="mb-1 flex items-center justify-between text-sm">
+                              <span className="font-medium text-foreground">Progress</span>
+                              <span className="text-primary">{progress}%</span>
+                            </div>
+                            <ProgressBar value={progress} max={100} label="Progress" />
+                            <div className="mt-2 grid grid-cols-2 gap-2">
+                              <div className="rounded border border-border bg-muted/40 p-2 text-center">
+                                <p className="text-xs text-muted-foreground">Completed</p>
+                                <p className="font-semibold text-success">{completed}</p>
+                              </div>
+                              <div className="rounded border border-border bg-muted/40 p-2 text-center">
+                                <p className="text-xs text-muted-foreground">Pending</p>
+                                <p className="font-semibold text-warning">{total - completed}</p>
+                              </div>
+                            </div>
+                          </div>
                           {topics.map((topic) => (
                             <div
                               key={topic.id}
